@@ -6,6 +6,6 @@ _________________________
 fully vibe coded btw
 
 
-this tool was NOT maid to promote vandalism, that why it s buil around A4 paper format
+this tool was NOT maid to promote vandalism, that why it s build around A4 paper format
 
 You do you

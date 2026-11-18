@@ -2,118 +2,281 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Générateur de Pochoirs 3D (A4 / K1C)</title>
+<title>Générateur de Pochoirs A4 — Anti-Îlots, STL (3D) & SVG (Laser)</title>
 <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
 <style>
-  body { font-family: system-ui, sans-serif; background: #1e1e24; color: #f0f0f5; max-width: 900px; margin: 20px auto; padding: 0 20px; }
-  h1 { font-size: 1.4rem; margin-bottom: 5px; }
-  .subtitle { color: #a0a0b0; font-size: 0.9rem; margin-bottom: 20px; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  .panel { background: #2b2b36; padding: 15px; border-radius: 8px; }
-  label { display: block; font-size: 0.85rem; margin-bottom: 5px; color: #ccc; }
+  :root { --bg: #18181f; --panel: #24242e; --input: #121217; --accent: #00b894; --svg-btn: #e17055; --warn: #fdcb6e; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: #f0f0f5; max-width: 1140px; margin: 20px auto; padding: 0 20px; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px 0; }
+  .subtitle { color: #9a9ab0; font-size: 0.9rem; margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px; align-items: start; }
+  .panel { background: var(--panel); padding: 18px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  .section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin: 16px 0 8px 0; font-weight: bold; border-bottom: 1px solid #353545; padding-bottom: 4px; }
+  .section-title:first-child { margin-top: 0; }
+  label { display: block; font-size: 0.83rem; margin-bottom: 4px; color: #ccc; }
   input[type="text"], select, input[type="number"] {
-    width: 100%; padding: 8px; margin-bottom: 12px; border-radius: 4px;
-    border: 1px solid #444; background: #18181f; color: #fff; box-sizing: border-box;
+    width: 100%; padding: 8px; margin-bottom: 10px; border-radius: 5px;
+    border: 1px solid #3a3a4a; background: var(--input); color: #fff; box-sizing: border-box; font-size: 0.9rem;
   }
-  .line-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+  input[type="range"] { width: 100%; margin: 4px 0 10px 0; accent-color: var(--accent); }
+  input[type="file"] { font-size: 0.82rem; margin-bottom: 8px; color: #ccc; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row > div { flex: 1; }
+  .line-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
   .line-row input { margin-bottom: 0; }
   button {
-    background: #00b894; color: #000; border: none; padding: 8px 12px;
-    border-radius: 4px; font-weight: bold; cursor: pointer; white-space: nowrap;
+    background: var(--accent); color: #000; border: none; padding: 8px 10px;
+    border-radius: 5px; font-weight: bold; cursor: pointer; white-space: nowrap; font-size: 0.82rem;
   }
-  button:disabled { background: #555; color: #888; cursor: not-allowed; }
-  .info-scale { color: #fdcb6e; font-size: 0.8rem; margin-bottom: 10px; display: none; }
-  #preview-container { background: #fff; width: 210px; height: 297px; margin: 0 auto; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.5); overflow: hidden; }
-  svg { width: 100%; height: 100%; }
-  .specs { font-size: 0.8rem; color: #aaa; margin-top: 12px; line-height: 1.4; }
+  button:hover { filter: brightness(1.1); }
+  button:disabled { background: #444; color: #777; cursor: not-allowed; }
+  .btn-svg { background: var(--svg-btn); color: #fff; }
+  .btn-sec { background: #0984e3; color: #fff; }
+  .btn-del { background: #d63031; color: #fff; padding: 8px 10px; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.85rem; cursor: pointer; }
+  .checkbox-row input { width: auto; margin: 0; }
+  .badge-info { font-size: 0.78rem; color: var(--warn); margin-bottom: 8px; display: none; }
+  .k1c-alert { background: rgba(253, 203, 110, 0.12); border-left: 3px solid var(--warn); padding: 8px 10px; font-size: 0.8rem; color: var(--warn); margin-top: 10px; border-radius: 4px; display: none; }
+  #preview-wrapper { background: #101015; padding: 15px; border-radius: 8px; display: flex; justify-content: center; align-items: center; }
+  #preview-container { background: #fff; width: 252px; height: 356px; box-shadow: 0 6px 25px rgba(0,0,0,0.6); position: relative; }
+  canvas#a4Canvas { width: 100%; height: 100%; display: block; }
+  .specs { font-size: 0.78rem; color: #999; margin-top: 12px; line-height: 1.45; border-top: 1px solid #353545; padding-top: 10px; }
+  .sub-box { background: #1c1c24; padding: 10px; border-radius: 6px; margin-bottom: 8px; }
 </style>
 </head>
 <body>
 
-<h1>Générateur de Pochoirs 3D (Format A4)</h1>
-<div class="subtitle">1 objet STL par ligne • Ajustement auto A4 • Épaisseur PLA K1C : 0.6 mm</div>
+<h1>Générateur de Pochoirs A4 — Anti-Îlots, 3D (STL) & Laser (SVG)</h1>
+<div class="subtitle">Format A4 (210 × 297 mm) • Ponts automatiques sur îlots flottants • Export STL & SVG vectoriel</div>
 
 <div class="grid">
   <div class="panel">
-    <label>Police Stencil (ponts intégrés pour les lettres fermées)</label>
-    <select id="fontSelect">
-      <option value="https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/allertastencil/AllertaStencil-Regular.ttf">Allerta Stencil (Lisible & Moderne)</option>
-      <option value="https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/blackopsone/BlackOpsOne-Regular.ttf">Black Ops One (Épais / Industriel)</option>
-    </select>
-
-    <div style="display:flex; gap:10px;">
-      <div style="flex:1;">
-        <label>Hauteur cible plus petite lettre (mm)</label>
-        <input type="number" id="minHeight" value="20" min="5" max="80">
+    <div class="section-title">1. Réglages généraux A4</div>
+    <div class="row">
+      <div>
+        <label>Hauteur lettre min (mm)</label>
+        <input type="number" id="minHeight" value="20" min="10" max="80">
       </div>
-      <div style="flex:1;">
-        <label>Épaisseur plaque (mm)</label>
+      <div>
+        <label>Marge bords (mm)</label>
+        <input type="number" id="marginInput" value="10" min="5" max="30">
+      </div>
+      <div>
+        <label>Épaisseur STL (mm)</label>
         <input type="number" id="thickness" value="0.6" step="0.2" min="0.4" max="2.0">
       </div>
     </div>
 
-    <label>
-      <input type="checkbox" id="fixedWidth" checked> Largeur de plaque fixe (210 mm = pleine largeur A4)
-    </label>
-    <br>
+    <div class="row">
+      <div>
+        <label>Police</label>
+        <select id="fontSelect">
+          <option value="https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/allertastencil/AllertaStencil-Regular.ttf">Allerta Stencil (Moderne)</option>
+          <option value="https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/blackopsone/BlackOpsOne-Regular.ttf">Black Ops One (Épais)</option>
+          <option value="https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/sairastencilone/SairaStencilOne-Regular.ttf">Saira Stencil One (Technique)</option>
+          <option value="https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/robotomono/RobotoMono%5Bwght%5D.ttf">Roboto Mono (Standard + Anti-îlots)</option>
+        </select>
+      </div>
+      <div>
+        <label>Ou police perso (.ttf / .otf)</label>
+        <input type="file" id="customFontFile" accept=".ttf,.otf,.woff">
+      </div>
+    </div>
 
-    <label>Lignes de texte (1 fichier STL par ligne)</label>
+    <label class="checkbox-row">
+      <input type="checkbox" id="fixedWidth" checked>
+      <span>Largeur de plaque pleine page A4 (210 mm)</span>
+    </label>
+
+    <div class="section-title">2. Anti-îlots (Rallonges automatiques)</div>
+    <label class="checkbox-row">
+      <input type="checkbox" id="antiIslandCheck" checked>
+      <span><strong>Relier automatiquement les îlots flottants</strong> (empêche l'intérieur des lettres ou logos de tomber)</span>
+    </label>
+    <div class="sub-box" id="bridgeBox">
+      <div class="row">
+        <div>
+          <label>Largeur du pont de maintien (mm)</label>
+          <input type="number" id="bridgeWidth" value="1.6" step="0.2" min="0.8" max="6.0" style="margin-bottom:0;">
+        </div>
+        <div>
+          <label>Direction privilégiée</label>
+          <select id="bridgeDir" style="margin-bottom:0;">
+            <option value="shortest">La plus courte (auto)</option>
+            <option value="vertical">Verticale (haut / bas)</option>
+            <option value="horizontal">Horizontale (gauche / droite)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">3. Texte (3 lignes maximum)</div>
+    <label class="checkbox-row">
+      <input type="checkbox" id="mergeMode">
+      <span><strong>Fusionner les lignes</strong> (et l'image éventuelle) en un seul pochoir</span>
+    </label>
+
     <div id="linesContainer"></div>
-    <button id="addLineBtn" style="background:#0984e3; color:#fff; width:100%; margin-top:5px;">+ Ajouter une ligne</button>
+    <div class="row" style="margin-top:6px;">
+      <button class="btn-sec" id="addLineBtn">+ Ajouter une ligne (max 3)</button>
+      <button id="exportMergedSTLBtn" style="display:none; background:#a29bfe; color:#000;">STL Fusionné</button>
+      <button class="btn-svg" id="exportMergedSVGBtn" style="display:none;">SVG Fusionné</button>
+    </div>
+
+    <div class="section-title">4. Ajouter une image / logo (Contraste auto)</div>
+    <div class="row">
+      <input type="file" id="imageInput" accept="image/*">
+      <button class="btn-del" id="clearImgBtn" style="display:none;">Retirer</button>
+    </div>
+
+    <div class="sub-box" id="imgControls" style="display:none;">
+      <div class="row">
+        <div>
+          <label>Seuil de contraste : <strong id="threshVal">128</strong></label>
+          <input type="range" id="thresholdSlider" min="10" max="245" value="128">
+        </div>
+        <div>
+          <label>Hauteur de l'image (mm) : <strong id="imgHVal">60</strong></label>
+          <input type="range" id="imgHeightSlider" min="20" max="180" value="60">
+        </div>
+      </div>
+      <div class="row">
+        <label class="checkbox-row" style="margin-bottom:0;">
+          <input type="checkbox" id="invertImg">
+          <span>Inverser N/B</span>
+        </label>
+        <label class="checkbox-row" style="margin-bottom:0;">
+          <input type="checkbox" id="cleanNoise" checked>
+          <span>Nettoyer bruit</span>
+        </label>
+        <button id="exportImgSTLBtn">STL Image</button>
+        <button class="btn-svg" id="exportImgSVGBtn">SVG Image</button>
+      </div>
+    </div>
+
+    <div class="k1c-alert" id="k1cAlert"></div>
 
     <div class="specs">
-      <strong>Réglages Cura (K1C buse 0.4 mm) :</strong><br>
-      • Hauteur de couche : 0.20 mm (3 couches pleines)<br>
-      • Bordure / Brim : Aucune
+      <strong>Astuce K1C & Laser :</strong> L'outil détecte chaque zone de matière isolée et tire un pont de <code>1.6 mm</code> (4 passages de buse 0.4 mm) vers la matière la plus proche. Visible en direct sur l'aperçu A4.
     </div>
   </div>
 
   <div class="panel" style="text-align:center;">
-    <label style="margin-bottom:10px;">Aperçu réel sur feuille A4 (210 × 297 mm)</label>
-    <div id="preview-container">
-      <svg id="a4Preview" viewBox="0 0 210 297"></svg>
+    <label style="margin-bottom:10px; font-weight:bold;">Aperçu réel feuille A4 (210 × 297 mm)</label>
+    <div id="preview-wrapper">
+      <div id="preview-container">
+        <canvas id="a4Canvas"></canvas>
+      </div>
     </div>
+    <div style="font-size:0.78rem; color:#888; margin-top:8px;">Gris foncé = matière • Blanc = découpe (peinture)</div>
   </div>
 </div>
 
 <script>
 const A4_W = 210;
 const A4_H = 297;
-const MARGIN = 10; // Marge de sécurité peinture sur les bords (mm)
+const PX_PER_MM = 5;
+
 let currentFont = null;
-let lines = ["ATTENTION", "FRAGILE", ""];
+let lines = ["ATTENTION", "FRAGILE"];
+let loadedImage = null;
 
 const linesContainer = document.getElementById('linesContainer');
-const svgPreview = document.getElementById('a4Preview');
+const a4Canvas = document.getElementById('a4Canvas');
+a4Canvas.width = A4_W * PX_PER_MM;
+a4Canvas.height = A4_H * PX_PER_MM;
+const a4Ctx = a4Canvas.getContext('2d');
 
-async function loadFont(url) {
+async function loadFontFromUrl(url) {
   currentFont = await opentype.load(url);
   updateAll();
 }
 
-document.getElementById('fontSelect').addEventListener('change', (e) => loadFont(e.target.value));
-document.getElementById('minHeight').addEventListener('input', updateAll);
-document.getElementById('thickness').addEventListener('input', updateAll);
-document.getElementById('fixedWidth').addEventListener('change', updateAll);
+document.getElementById('fontSelect').addEventListener('change', (e) => loadFontFromUrl(e.target.value));
+
+document.getElementById('customFontFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    currentFont = opentype.parse(ev.target.result);
+    updateAll();
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+document.getElementById('imageInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => {
+    loadedImage = img;
+    document.getElementById('imgControls').style.display = 'block';
+    document.getElementById('clearImgBtn').style.display = 'inline-block';
+    updateAll();
+  };
+  img.src = URL.createObjectURL(file);
+});
+
+document.getElementById('clearImgBtn').addEventListener('click', () => {
+  loadedImage = null;
+  document.getElementById('imageInput').value = '';
+  document.getElementById('imgControls').style.display = 'none';
+  document.getElementById('clearImgBtn').style.display = 'none';
+  updateAll();
+});
+
+['minHeight', 'marginInput', 'thickness', 'thresholdSlider', 'imgHeightSlider', 'bridgeWidth'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    document.getElementById('threshVal').textContent = document.getElementById('thresholdSlider').value;
+    document.getElementById('imgHVal').textContent = document.getElementById('imgHeightSlider').value;
+    updateAll();
+  });
+});
+
+document.getElementById('bridgeDir').addEventListener('change', updateAll);
+
+['fixedWidth', 'mergeMode', 'invertImg', 'cleanNoise', 'antiIslandCheck'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    document.getElementById('bridgeBox').style.display = document.getElementById('antiIslandCheck').checked ? 'block' : 'none';
+    const merge = document.getElementById('mergeMode').checked;
+    document.getElementById('exportMergedSTLBtn').style.display = merge ? 'inline-block' : 'none';
+    document.getElementById('exportMergedSVGBtn').style.display = merge ? 'inline-block' : 'none';
+    document.getElementById('exportImgSTLBtn').style.display = merge ? 'none' : 'inline-block';
+    document.getElementById('exportImgSVGBtn').style.display = merge ? 'none' : 'inline-block';
+    renderInputs();
+    updateAll();
+  });
+});
 
 document.getElementById('addLineBtn').addEventListener('click', () => {
-  if (lines.length < 6) {
+  if (lines.length < 3) {
     lines.push("");
     renderInputs();
     updateAll();
   }
 });
 
+document.getElementById('exportMergedSTLBtn').addEventListener('click', () => exportBlockSTL('merged'));
+document.getElementById('exportMergedSVGBtn').addEventListener('click', () => exportBlockSVG('merged'));
+document.getElementById('exportImgSTLBtn').addEventListener('click', () => exportBlockSTL('image'));
+document.getElementById('exportImgSVGBtn').addEventListener('click', () => exportBlockSVG('image'));
+
 function renderInputs() {
+  const merge = document.getElementById('mergeMode').checked;
+  document.getElementById('addLineBtn').disabled = (lines.length >= 3);
   linesContainer.innerHTML = '';
+
   lines.forEach((txt, idx) => {
     const wrapper = document.createElement('div');
     wrapper.innerHTML = `
       <div class="line-row">
-        <input type="text" value="${txt}" placeholder="Ligne ${idx + 1}..." data-idx="${idx}">
-        <button id="btn-${idx}" onclick="exportSTL(${idx})">STL Ligne ${idx + 1}</button>
+        <input type="text" value="${txt.replace(/"/g, '&quot;')}" placeholder="Ligne ${idx + 1}..." data-idx="${idx}">
+        ${!merge ? `<button id="btn-stl-${idx}" onclick="exportBlockSTL(${idx})">STL</button>` : ''}
+        ${!merge ? `<button class="btn-svg" id="btn-svg-${idx}" onclick="exportBlockSVG(${idx})">SVG</button>` : ''}
+        ${lines.length > 1 ? `<button class="btn-del" onclick="removeLine(${idx})" title="Supprimer">✕</button>` : ''}
       </div>
-      <div class="info-scale" id="info-${idx}"></div>
+      <div class="badge-info" id="info-${idx}"></div>
     `;
     wrapper.querySelector('input').addEventListener('input', (e) => {
       lines[idx] = e.target.value;
@@ -123,13 +286,17 @@ function renderInputs() {
   });
 }
 
-// Calcul géométrique avec réduction automatique si le texte dépasse la largeur A4
-function computeLineGeometry(text, targetMinHeight, fixedPlateWidth) {
+function removeLine(idx) {
+  lines.splice(idx, 1);
+  renderInputs();
+  updateAll();
+}
+
+function computeLineGeometry(text, targetMinHeight, margin) {
   if (!currentFont || !text.trim()) return null;
 
   const testSize = 100;
   let minGlyphH = Infinity;
-
   for (const char of text) {
     if (char === ' ') continue;
     const glyph = currentFont.charToGlyph(char);
@@ -139,126 +306,513 @@ function computeLineGeometry(text, targetMinHeight, fixedPlateWidth) {
   }
   if (minGlyphH === Infinity) return null;
 
-  // 1. Taille initiale pour que la plus petite lettre = targetMinHeight
   let fontSize = testSize * (targetMinHeight / minGlyphH);
   let path = currentFont.getPath(text, 0, 0, fontSize);
   let box = path.getBoundingBox();
 
   let textW = box.x2 - box.x1;
-  const maxAllowedTextW = A4_W - (MARGIN * 2); // 190 mm utiles
+  const maxAllowedTextW = A4_W - (margin * 2);
   let wasScaledDown = false;
   let actualMinHeight = targetMinHeight;
 
-  // 2. Si le texte dépasse 190 mm, on réduit proportionnellement la police
   if (textW > maxAllowedTextW) {
     const ratio = maxAllowedTextW / textW;
     fontSize *= ratio;
     actualMinHeight = targetMinHeight * ratio;
     wasScaledDown = true;
-
     path = currentFont.getPath(text, 0, 0, fontSize);
     box = path.getBoundingBox();
     textW = box.x2 - box.x1;
   }
 
   const textH = box.y2 - box.y1;
-  const plateW = fixedPlateWidth ? A4_W : Math.min(A4_W, textW + MARGIN * 2);
-  const plateH = textH + MARGIN * 2;
+  return { path, box, textW, textH, wasScaledDown, actualMinHeight };
+}
 
-  return { path, box, textW, textH, plateW, plateH, wasScaledDown, actualMinHeight };
+function getProcessedImageData(targetH_mm, margin) {
+  if (!loadedImage) return null;
+
+  const maxW_mm = A4_W - (margin * 2);
+  const aspect = loadedImage.width / loadedImage.height;
+  let drawH_mm = targetH_mm;
+  let drawW_mm = drawH_mm * aspect;
+
+  if (drawW_mm > maxW_mm) {
+    drawW_mm = maxW_mm;
+    drawH_mm = drawW_mm / aspect;
+  }
+
+  const wPx = Math.max(10, Math.round(drawW_mm * PX_PER_MM));
+  const hPx = Math.max(10, Math.round(drawH_mm * PX_PER_MM));
+
+  const c = document.createElement('canvas');
+  c.width = wPx;
+  c.height = hPx;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, wPx, hPx);
+  ctx.drawImage(loadedImage, 0, 0, wPx, hPx);
+
+  const imgData = ctx.getImageData(0, 0, wPx, hPx);
+  const d = imgData.data;
+  const threshold = parseInt(document.getElementById('thresholdSlider').value, 10);
+  const invert = document.getElementById('invertImg').checked;
+
+  const mask = new Uint8Array(wPx * hPx);
+  for (let i = 0; i < wPx * hPx; i++) {
+    const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2], a = d[i * 4 + 3];
+    if (a < 128) {
+      mask[i] = 0;
+    } else {
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      const isCutout = invert ? (lum >= threshold) : (lum < threshold);
+      mask[i] = isCutout ? 1 : 0;
+    }
+  }
+
+  if (document.getElementById('cleanNoise').checked) {
+    const cleaned = new Uint8Array(mask);
+    for (let y = 1; y < hPx - 1; y++) {
+      for (let x = 1; x < wPx - 1; x++) {
+        let sum = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            sum += mask[(y + dy) * wPx + (x + dx)];
+          }
+        }
+        cleaned[y * wPx + x] = (sum >= 5) ? 1 : 0;
+      }
+    }
+    mask.set(cleaned);
+  }
+
+  for (let i = 0; i < wPx * hPx; i++) {
+    const val = mask[i] ? 255 : 0;
+    d[i * 4] = val; d[i * 4 + 1] = val; d[i * 4 + 2] = val; d[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  return { canvas: c, mask, wPx, hPx, w_mm: drawW_mm, h_mm: drawH_mm };
+}
+
+/**
+ * ALGORITHME ANTI-ÎLOTS (Détection par composantes connexes + ponts directs)
+ * solidMask : Uint8Array (1 = matière plastique, 0 = vide/découpe)
+ * Relie itérativement chaque bloc de matière non connecté au cadre extérieur.
+ */
+function eliminateFloatingIslands(solidMask, w, h, bridgeWidthPx, directionPref) {
+  const halfB = Math.max(1, Math.floor(bridgeWidthPx / 2));
+  const labels = new Int32Array(w * h);
+  const queue = new Int32Array(w * h);
+
+  // Jusqu'à 80 îlots max par sécurité
+  for (let iter = 0; iter < 80; iter++) {
+    labels.fill(0);
+
+    // 1. Marquer toute la matière connectée au bord extérieur (label = 1)
+    let head = 0, tail = 0;
+    for (let x = 0; x < w; x++) {
+      if (solidMask[x] === 1 && labels[x] === 0) { labels[x] = 1; queue[tail++] = x; }
+      const bot = (h - 1) * w + x;
+      if (solidMask[bot] === 1 && labels[bot] === 0) { labels[bot] = 1; queue[tail++] = bot; }
+    }
+    for (let y = 0; y < h; y++) {
+      const left = y * w;
+      if (solidMask[left] === 1 && labels[left] === 0) { labels[left] = 1; queue[tail++] = left; }
+      const right = y * w + (w - 1);
+      if (solidMask[right] === 1 && labels[right] === 0) { labels[right] = 1; queue[tail++] = right; }
+    }
+
+    while (head < tail) {
+      const idx = queue[head++];
+      const x = idx % w;
+      const y = (idx - x) / w;
+      if (x > 0 && solidMask[idx - 1] === 1 && labels[idx - 1] === 0) { labels[idx - 1] = 1; queue[tail++] = idx - 1; }
+      if (x < w - 1 && solidMask[idx + 1] === 1 && labels[idx + 1] === 0) { labels[idx + 1] = 1; queue[tail++] = idx + 1; }
+      if (y > 0 && solidMask[idx - w] === 1 && labels[idx - w] === 0) { labels[idx - w] = 1; queue[tail++] = idx - w; }
+      if (y < h - 1 && solidMask[idx + w] === 1 && labels[idx + w] === 0) { labels[idx + w] = 1; queue[tail++] = idx + w; }
+    }
+
+    // 2. Chercher le premier pixel de matière orphelin (label === 0 && solidMask === 1)
+    let seed = -1;
+    for (let i = 0; i < w * h; i++) {
+      if (solidMask[i] === 1 && labels[i] === 0) {
+        seed = i;
+        break;
+      }
+    }
+    if (seed === -1) break; // Plus aucun îlot flottant !
+
+    // 3. Collecter tous les pixels de cet îlot (label = 2)
+    head = 0; tail = 0;
+    labels[seed] = 2;
+    queue[tail++] = seed;
+    while (head < tail) {
+      const idx = queue[head++];
+      const x = idx % w;
+      const y = (idx - x) / w;
+      if (x > 0 && solidMask[idx - 1] === 1 && labels[idx - 1] === 0) { labels[idx - 1] = 2; queue[tail++] = idx - 1; }
+      if (x < w - 1 && solidMask[idx + 1] === 1 && labels[idx + 1] === 0) { labels[idx + 1] = 2; queue[tail++] = idx + 1; }
+      if (y > 0 && solidMask[idx - w] === 1 && labels[idx - w] === 0) { labels[idx - w] = 2; queue[tail++] = idx - w; }
+      if (y < h - 1 && solidMask[idx + w] === 1 && labels[idx + w] === 0) { labels[idx + w] = 2; queue[tail++] = idx + w; }
+    }
+
+    // 4. Trouver le rayon droit le plus court reliant un pixel de l'îlot (label 2) à la matière principale (label 1)
+    const dirs = directionPref === 'vertical'
+      ? [[0, -1], [0, 1], [-1, 0], [1, 0]]
+      : (directionPref === 'horizontal' ? [[-1, 0], [1, 0], [0, -1], [0, 1]] : [[0, -1], [0, 1], [-1, 0], [1, 0]]);
+
+    let bestBridge = null;
+    let bestScore = Infinity;
+
+    // Échantillonnage des pixels de l'îlot pour rapidité et centrage
+    const stepSample = Math.max(1, Math.floor(tail / 150));
+    for (let k = 0; k < tail; k += stepSample) {
+      const idx = queue[k];
+      const sx = idx % w;
+      const sy = (idx - sx) / w;
+
+      for (let dIdx = 0; dIdx < dirs.length; dIdx++) {
+        const [dx, dy] = dirs[dIdx];
+        let cx = sx + dx;
+        let cy = sy + dy;
+        let dist = 1;
+
+        while (cx >= 0 && cx < w && cy >= 0 && cy < h) {
+          const cIdx = cy * w + cx;
+          if (labels[cIdx] === 2) {
+            // On traverse encore le même îlot, pas le bord extérieur de l'îlot
+            dist = Infinity;
+            break;
+          }
+          if (labels[cIdx] === 1) {
+            // Contact avec la matière principale trouvé !
+            // Pénalité légère si direction non privilégiée
+            const dirPenalty = (directionPref !== 'shortest' && dIdx >= 2) ? 1000 : 0;
+            const score = dist + dirPenalty;
+            if (score < bestScore) {
+              bestScore = score;
+              bestBridge = { x1: sx, y1: sy, x2: cx, y2: cy, dx, dy };
+            }
+            break;
+          }
+          cx += dx;
+          cy += dy;
+          dist++;
+        }
+      }
+    }
+
+    // 5. Dessiner le pont dans solidMask
+    if (bestBridge) {
+      const { x1, y1, x2, y2, dx, dy } = bestBridge;
+      const minX = Math.min(x1, x2) - (dy !== 0 ? halfB : 0);
+      const maxX = Math.max(x1, x2) + (dy !== 0 ? halfB : 0);
+      const minY = Math.min(y1, y2) - (dx !== 0 ? halfB : 0);
+      const maxY = Math.max(y1, y2) + (dx !== 0 ? halfB : 0);
+
+      for (let py = Math.max(0, minY); py <= Math.min(h - 1, maxY); py++) {
+        for (let px = Math.max(0, minX); px <= Math.min(w - 1, maxX); px++) {
+          solidMask[py * w + px] = 1;
+        }
+      }
+    } else {
+      break;
+    }
+  }
+}
+
+// Vectorisation des contours d'un masque de découpe (1 = trou, 0 = matière) vers chemin SVG en mm
+function traceCutoutMaskToSVGPath(cutoutMask, wPx, hPx) {
+  const step = 1 / PX_PER_MM;
+  const edges = new Map();
+  const addEdge = (x1, y1, x2, y2) => {
+    const k1 = `${x1},${y1}`;
+    if (!edges.has(k1)) edges.set(k1, []);
+    edges.get(k1).push([x2, y2]);
+  };
+
+  for (let y = 0; y < hPx; y++) {
+    for (let x = 0; x < wPx; x++) {
+      if (cutoutMask[y * wPx + x] === 1) {
+        if (y === 0 || cutoutMask[(y - 1) * wPx + x] === 0) addEdge(x, y, x + 1, y);
+        if (x === wPx - 1 || cutoutMask[y * wPx + (x + 1)] === 0) addEdge(x + 1, y, x + 1, y + 1);
+        if (y === hPx - 1 || cutoutMask[(y + 1) * wPx + x] === 0) addEdge(x + 1, y + 1, x, y + 1);
+        if (x === 0 || cutoutMask[y * wPx + (x - 1)] === 0) addEdge(x, y + 1, x, y);
+      }
+    }
+  }
+
+  let d = "";
+  for (const [startKey, targets] of edges.entries()) {
+    while (targets.length > 0) {
+      const [sx, sy] = startKey.split(',').map(Number);
+      let [cx, cy] = targets.pop();
+      const poly = [[sx, sy], [cx, cy]];
+
+      while (cx !== sx || cy !== sy) {
+        const nextList = edges.get(`${cx},${cy}`);
+        if (!nextList || nextList.length === 0) break;
+        const [nx, ny] = nextList.pop();
+        const prev = poly[poly.length - 2];
+        const curr = poly[poly.length - 1];
+        if ((curr[0] - prev[0]) === (nx - curr[0]) && (curr[1] - prev[1]) === (ny - curr[1])) {
+          poly[poly.length - 1] = [nx, ny];
+        } else {
+          poly.push([nx, ny]);
+        }
+        cx = nx; cy = ny;
+      }
+
+      if (poly.length > 2) {
+        d += `M ${(poly[0][0] * step).toFixed(3)} ${(poly[0][1] * step).toFixed(3)} `;
+        for (let i = 1; i < poly.length; i++) {
+          d += `L ${(poly[i][0] * step).toFixed(3)} ${(poly[i][1] * step).toFixed(3)} `;
+        }
+        d += "Z ";
+      }
+    }
+  }
+  return d;
+}
+
+function getItemsForMode(mode) {
+  const minH = Math.max(10, parseFloat(document.getElementById('minHeight').value) || 20);
+  const margin = Math.max(5, parseFloat(document.getElementById('marginInput').value) || 10);
+  const targetImgH = parseFloat(document.getElementById('imgHeightSlider').value) || 60;
+  let items = [];
+
+  if (mode === 'merged') {
+    lines.forEach(txt => {
+      const g = computeLineGeometry(txt, minH, margin);
+      if (g) items.push({ type: 'text', data: g, w_mm: g.textW, h_mm: g.textH });
+    });
+    const imgObj = getProcessedImageData(targetImgH, margin);
+    if (imgObj) items.push({ type: 'img', data: imgObj, w_mm: imgObj.w_mm, h_mm: imgObj.h_mm });
+  } else if (mode === 'image') {
+    const imgObj = getProcessedImageData(targetImgH, margin);
+    if (imgObj) items.push({ type: 'img', data: imgObj, w_mm: imgObj.w_mm, h_mm: imgObj.h_mm });
+  } else if (typeof mode === 'number') {
+    const g = computeLineGeometry(lines[mode], minH, margin);
+    if (g) items.push({ type: 'text', data: g, w_mm: g.textW, h_mm: g.textH });
+  }
+  return { items, margin };
+}
+
+// Construit le bloc pochoir complet avec application de l'anti-îlots sur la matrice binaire
+function buildStencilBlock(mode) {
+  const fixedW = document.getElementById('fixedWidth').checked;
+  const antiIsland = document.getElementById('antiIslandCheck').checked;
+  const bridgeW_mm = parseFloat(document.getElementById('bridgeWidth').value) || 1.6;
+  const bridgeDir = document.getElementById('bridgeDir').value;
+
+  const { items, margin } = getItemsForMode(mode);
+  if (items.length === 0) return null;
+
+  const maxContentW = Math.max(...items.map(it => it.w_mm));
+  const plateW_mm = fixedW ? A4_W : Math.min(A4_W, maxContentW + margin * 2);
+  const totalContentH = items.reduce((sum, it) => sum + it.h_mm, 0);
+  const plateH_mm = totalContentH + margin * (items.length + 1);
+
+  const wPx = Math.round(plateW_mm * PX_PER_MM);
+  const hPx = Math.round(plateH_mm * PX_PER_MM);
+
+  const c = document.createElement('canvas');
+  c.width = wPx;
+  c.height = hPx;
+  const ctx = c.getContext('2d');
+
+  // Noir (0) = matière plastique, Blanc (255) = découpe
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, wPx, hPx);
+
+  let cursorY_mm = margin;
+  items.forEach(it => {
+    const x_mm = (plateW_mm - it.w_mm) / 2;
+    if (it.type === 'text') {
+      ctx.save();
+      ctx.scale(PX_PER_MM, PX_PER_MM);
+      ctx.translate(x_mm - it.data.box.x1, cursorY_mm - it.data.box.y1);
+      it.data.path.fill = '#ffffff';
+      it.data.path.draw(ctx);
+      ctx.restore();
+    } else if (it.type === 'img') {
+      ctx.drawImage(it.data.canvas, Math.round(x_mm * PX_PER_MM), Math.round(cursorY_mm * PX_PER_MM));
+    }
+    cursorY_mm += it.h_mm + margin;
+  });
+
+  // Extraction du masque de matière (1 = plastique, 0 = découpe)
+  const imgData = ctx.getImageData(0, 0, wPx, hPx);
+  const solidMask = new Uint8Array(wPx * hPx);
+  for (let i = 0; i < wPx * hPx; i++) {
+    solidMask[i] = imgData.data[i * 4] < 128 ? 1 : 0;
+  }
+
+  // Suppression des îlots flottants si activé
+  if (antiIsland) {
+    const bridgeW_px = Math.max(2, Math.round(bridgeW_mm * PX_PER_MM));
+    eliminateFloatingIslands(solidMask, wPx, hPx, bridgeW_px, bridgeDir);
+
+    // Mise à jour du canvas avec les ponts ajoutés
+    for (let i = 0; i < wPx * hPx; i++) {
+      const val = solidMask[i] ? 0 : 255;
+      imgData.data[i * 4] = val;
+      imgData.data[i * 4 + 1] = val;
+      imgData.data[i * 4 + 2] = val;
+      imgData.data[i * 4 + 3] = 255;
+    }
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  return { canvas: c, solidMask, wPx, hPx, plateW_mm, plateH_mm, antiIsland, items, margin };
+}
+
+// Export SVG vectoriel 1:1 en mm pour Inkscape / Découpeuse Laser
+function exportBlockSVG(mode) {
+  const block = buildStencilBlock(mode);
+  if (!block) return;
+
+  let innerPaths = "";
+
+  // Si anti-îlots activé ou image présente, on vectorise le masque final (qui inclut les ponts !)
+  // Sinon, on exporte directement les courbes Bézier natives des polices
+  const hasImage = block.items.some(it => it.type === 'img');
+  if (block.antiIsland || hasImage) {
+    const cutoutMask = new Uint8Array(block.wPx * block.hPx);
+    for (let i = 0; i < cutoutMask.length; i++) {
+      cutoutMask[i] = block.solidMask[i] === 0 ? 1 : 0;
+    }
+    const traced = traceCutoutMaskToSVGPath(cutoutMask, block.wPx, block.hPx);
+    innerPaths += `  <path d="${traced}" fill="none" stroke="#ff0000" stroke-width="0.1" />\n`;
+  } else {
+    let cursorY_mm = block.margin;
+    block.items.forEach(it => {
+      const x_mm = (block.plateW_mm - it.w_mm) / 2;
+      const tx = (x_mm - it.data.box.x1).toFixed(3);
+      const ty = (cursorY_mm - it.data.box.y1).toFixed(3);
+      innerPaths += `  <path d="${it.data.path.toPathData(3)}" transform="translate(${tx}, ${ty})" fill="none" stroke="#ff0000" stroke-width="0.1" />\n`;
+      cursorY_mm += it.h_mm + block.margin;
+    });
+  }
+
+  const svgContent = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${block.plateW_mm.toFixed(2)}mm" height="${block.plateH_mm.toFixed(2)}mm" viewBox="0 0 ${block.plateW_mm.toFixed(2)} ${block.plateH_mm.toFixed(2)}">
+  <!-- Découpe intérieure (lettres / motifs avec ponts anti-îlots) - Trait rouge -->
+  <g id="decoupe_interieure">
+${innerPaths}  </g>
+  <!-- Contour extérieur de la plaque - Trait bleu -->
+  <g id="contour_exterieur">
+    <rect x="0" y="0" width="${block.plateW_mm.toFixed(2)}" height="${block.plateH_mm.toFixed(2)}" fill="none" stroke="#0000ff" stroke-width="0.1" />
+  </g>
+</svg>`;
+
+  const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const label = mode === 'merged' ? 'pochoir_complet' : (mode === 'image' ? 'pochoir_image' : `pochoir_ligne_${mode + 1}`);
+  a.download = `${label}_laser.svg`;
+  a.click();
 }
 
 function updateAll() {
-  const minH = Math.max(5, parseFloat(document.getElementById('minHeight').value) || 20);
-  const fixedW = document.getElementById('fixedWidth').checked;
-  svgPreview.innerHTML = '';
-  let currentY = 10;
+  const minH = Math.max(10, parseFloat(document.getElementById('minHeight').value) || 20);
+  const margin = Math.max(5, parseFloat(document.getElementById('marginInput').value) || 10);
+  const merge = document.getElementById('mergeMode').checked;
 
   lines.forEach((txt, idx) => {
-    const btn = document.getElementById(`btn-${idx}`);
+    const btnStl = document.getElementById(`btn-stl-${idx}`);
+    const btnSvg = document.getElementById(`btn-svg-${idx}`);
     const info = document.getElementById(`info-${idx}`);
-    const geom = computeLineGeometry(txt, minH, fixedW);
-
+    const geom = computeLineGeometry(txt, minH, margin);
     if (!geom) {
-      btn.disabled = true;
-      info.style.display = 'none';
+      if (btnStl) btnStl.disabled = true;
+      if (btnSvg) btnSvg.disabled = true;
+      if (info) info.style.display = 'none';
       return;
     }
-
-    btn.disabled = false;
-
-    if (geom.wasScaledDown) {
-      info.style.display = 'block';
-      info.textContent = `Ajusté auto au format A4 (plus petite lettre : ${geom.actualMinHeight.toFixed(1)} mm)`;
-    } else {
-      info.style.display = 'none';
+    if (btnStl) btnStl.disabled = false;
+    if (btnSvg) btnSvg.disabled = false;
+    if (info) {
+      if (geom.wasScaledDown) {
+        info.style.display = 'block';
+        info.textContent = `Ajusté auto à 210 mm (lettre min : ${geom.actualMinHeight.toFixed(1)} mm)`;
+      } else {
+        info.style.display = 'none';
+      }
     }
-
-    // Dessin SVG sur l'aperçu A4
-    const plateX = (A4_W - geom.plateW) / 2;
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
-    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    rect.setAttribute("x", plateX);
-    rect.setAttribute("y", currentY);
-    rect.setAttribute("width", geom.plateW);
-    rect.setAttribute("height", geom.plateH);
-    rect.setAttribute("fill", "#2d3436");
-    g.appendChild(rect);
-
-    const offsetX = plateX + (geom.plateW - geom.textW) / 2 - geom.box.x1;
-    const offsetY = currentY + (geom.plateH - geom.textH) / 2 - geom.box.y1;
-
-    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    p.setAttribute("d", geom.path.toPathData(2));
-    p.setAttribute("transform", `translate(${offsetX}, ${offsetY})`);
-    p.setAttribute("fill", "#ffffff");
-    g.appendChild(p);
-
-    svgPreview.appendChild(g);
-    currentY += geom.plateH + 6;
   });
+
+  a4Ctx.fillStyle = '#ffffff';
+  a4Ctx.fillRect(0, 0, a4Canvas.width, a4Canvas.height);
+
+  let blocks = [];
+  if (merge) {
+    const b = buildStencilBlock('merged');
+    if (b) blocks.push(b);
+  } else {
+    lines.forEach((_, idx) => {
+      const b = buildStencilBlock(idx);
+      if (b) blocks.push(b);
+    });
+    const imgB = buildStencilBlock('image');
+    if (imgB) blocks.push(imgB);
+  }
+
+  let yPos_mm = 8;
+  let maxBlockH = 0;
+
+  blocks.forEach(b => {
+    if (b.plateH_mm > maxBlockH) maxBlockH = b.plateH_mm;
+    const xPos_mm = (A4_W - b.plateW_mm) / 2;
+
+    const visCanvas = document.createElement('canvas');
+    visCanvas.width = b.canvas.width;
+    visCanvas.height = b.canvas.height;
+    const vctx = visCanvas.getContext('2d');
+    vctx.drawImage(b.canvas, 0, 0);
+    const idata = vctx.getImageData(0, 0, visCanvas.width, visCanvas.height);
+    for (let i = 0; i < idata.data.length; i += 4) {
+      if (idata.data[i] < 128) {
+        idata.data[i] = 45; idata.data[i+1] = 52; idata.data[i+2] = 54;
+      }
+    }
+    vctx.putImageData(idata, 0, 0);
+
+    a4Ctx.drawImage(visCanvas, Math.round(xPos_mm * PX_PER_MM), Math.round(yPos_mm * PX_PER_MM));
+    yPos_mm += b.plateH_mm + 6;
+  });
+
+  const alertBox = document.getElementById('k1cAlert');
+  if (yPos_mm - 6 > A4_H) {
+    alertBox.style.display = 'block';
+    alertBox.textContent = `Attention : l'ensemble dépasse la hauteur d'une feuille A4 (297 mm).`;
+  } else if (maxBlockH > 220) {
+    alertBox.style.display = 'block';
+    alertBox.textContent = `Info plateau K1C : ce pochoir mesure ${Math.round(maxBlockH)} mm de haut (> 220 mm). Pivotez-le à 45° dans Cura (inutile pour découpeuse laser).`;
+  } else {
+    alertBox.style.display = 'none';
+  }
 }
 
-function exportSTL(idx) {
-  const minH = Math.max(5, parseFloat(document.getElementById('minHeight').value) || 20);
+function exportBlockSTL(mode) {
+  const block = buildStencilBlock(mode);
+  if (!block) return;
+
   const thick = parseFloat(document.getElementById('thickness').value) || 0.6;
-  const fixedW = document.getElementById('fixedWidth').checked;
-  const geom = computeLineGeometry(lines[idx], minH, fixedW);
-  if (!geom) return;
+  const w = block.wPx;
+  const h = block.hPx;
+  const solidMask = block.solidMask;
 
-  const scale = 10; 
-  const w = Math.round(geom.plateW * scale);
-  const h = Math.round(geom.plateH * scale);
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, w, h);
-
-  ctx.save();
-  ctx.scale(scale, scale);
-  const offsetX = (geom.plateW - geom.textW) / 2 - geom.box.x1;
-  const offsetY = (geom.plateH - geom.textH) / 2 - geom.box.y1;
-  ctx.translate(offsetX, offsetY);
-  geom.path.fill = '#fff';
-  geom.path.draw(ctx);
-  ctx.restore();
-
-  const imgData = ctx.getImageData(0, 0, w, h).data;
   const isSolid = (x, y) => {
     if (x < 0 || y < 0 || x >= w || y >= h) return false;
-    return imgData[(y * w + x) * 4] < 128;
+    return solidMask[y * w + x] === 1;
   };
 
   const triangles = [];
-  const addQuad = (p1, p2, p3, p4) => {
-    triangles.push([p1, p2, p3], [p1, p3, p4]);
-  };
+  const addQuad = (p1, p2, p3, p4) => triangles.push([p1, p2, p3], [p1, p3, p4]);
+  const step = 1 / PX_PER_MM;
 
-  const step = 1 / scale;
   for (let y = 0; y < h; y++) {
     let runStart = -1;
     for (let x = 0; x <= w; x++) {
@@ -304,13 +858,13 @@ function exportSTL(idx) {
   const blob = new Blob([buffer], { type: 'application/octet-stream' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  const cleanName = lines[idx].trim().replace(/[^a-z0-9]/gi, '_').toLowerCase() || `ligne_${idx+1}`;
-  a.download = `pochoir_${idx+1}_${cleanName}.stl`;
+  const label = mode === 'merged' ? 'pochoir_complet' : (mode === 'image' ? 'pochoir_image' : `pochoir_ligne_${mode + 1}`);
+  a.download = `${label}_A4.stl`;
   a.click();
 }
 
 renderInputs();
-loadFont(document.getElementById('fontSelect').value);
+loadFontFromUrl(document.getElementById('fontSelect').value);
 </script>
 </body>
 </html>
